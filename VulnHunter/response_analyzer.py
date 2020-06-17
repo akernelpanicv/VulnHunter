@@ -1,15 +1,10 @@
 import requests
 import sys
-import logging.config
 
 from requests.exceptions import ConnectionError
 from abc import ABCMeta, abstractmethod
 
-from settings import logger_config
-
-
-logging.config.dictConfig(logger_config)
-logger = logging.getLogger('ResponseParser_logger')
+from firewalls import wafs, logger
 
 
 class ResponseParser:
@@ -29,7 +24,7 @@ class ResponseParser:
             sys.exit(1)
 
     def _parse(self):
-        handlers = (StatusCodeHandler, CSPHandler)
+        handlers = (StatusCodeHandler, WAFHandler, CSPHandler)
 
         [handler(self.response) for handler in handlers]
 
@@ -48,7 +43,12 @@ class StatusCodeHandler(BaseHandler):
         status_code = response.status_code
 
         if status_code != 200:
-            logger.warning('The response status code is {status_code}')
+            logger.warning(f'The response status code is {status_code}')
+
+
+class WAFHandler(BaseHandler):
+    def handle(self, response):
+        [waf(response) for waf in wafs]
 
 
 class CSPHandler(BaseHandler):
