@@ -1,10 +1,17 @@
 import requests
 import sys
 
+import logging.config
+from settings import logger_config
+
 from requests.exceptions import ConnectionError
 from abc import ABCMeta, abstractmethod
 
-from firewalls import wafs, logger
+from firewalls import wafs
+
+
+logging.config.dictConfig(logger_config)
+logger = logging.getLogger('ResponseParser_logger')
 
 
 class ResponseParser:
@@ -48,7 +55,11 @@ class StatusCodeHandler(BaseHandler):
 
 class WAFHandler(BaseHandler):
     def handle(self, response):
-        [waf(response) for waf in wafs]
+        for waf in wafs:
+            waf(response)
+
+            if waf.is_detected():
+                logger.info(f'WAF "{waf.name}" detected')
 
 
 class CSPHandler(BaseHandler):
