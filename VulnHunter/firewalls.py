@@ -28,7 +28,6 @@ class BaseWAF(metaclass=ABCMeta):
 
 class Wallarm(BaseWAF):
     name = 'Wallarm'
-    _detected = False
     _footprints = {'headers': 'nginx-wallarm',
                    'server': 'wallarm'}
 
@@ -39,7 +38,6 @@ class Wallarm(BaseWAF):
 
 class Varnish(BaseWAF):
     name = 'xVarnish'
-    _detected = False
     _footprints = {'body': 'Request rejected by xVarnish-WAF'}
 
     def check(self, response):
@@ -49,7 +47,6 @@ class Varnish(BaseWAF):
 
 class Cloudflare(BaseWAF):
     name = 'Cloudflare'
-    _detected = False
     _footprints = {'server': 'cloudflare'}
 
     def check(self, response):
@@ -59,7 +56,6 @@ class Cloudflare(BaseWAF):
 
 class Qrator(BaseWAF):
     name = 'Qrator'
-    _detected = False
     _footprints = {'server': 'QRATOR'}
 
     def check(self, response):
@@ -69,29 +65,35 @@ class Qrator(BaseWAF):
 
 class ModSecurity(BaseWAF):
     name = 'ModSecurity'
-    _detected = False
-    _footprints = {}
+    _footprints = {'server': ('mod_security', 'NOYB'),
+                   'body': 'mod_security'}
 
     def check(self, response):
-        pass
+        if response.headers['server'] in self._footprints['server'] or self._footprints['body'] in response.text:
+            self.set_detected(True)
 
 
 class NAXSI(BaseWAF):
     name = 'NAXSI'
-    _detected = False
-    _footprints = {}
+    _footprints = {'server': 'naxsi',
+                   'body': 'blocked by naxsi'}
 
     def check(self, response):
-        pass
+        if self._footprints['server'] in response.headers['server'] or self._footprints['body'] in response.text:
+            self.set_detected(True)
 
 
 class Nemesida(BaseWAF):
     name = 'Nemesida'
-    _detected = False
-    _footprints = {}
+    _footprints = {'body': ('nemesida',
+                            'Suspicious activity detected. Access to the site is blocked',
+                            'nwaf')}
 
     def check(self, response):
-        pass
+        for content in self._footprints['body']:
+            if content in response.text:
+                self.set_detected(True)
+                break
 
 
 wafs = [Wallarm, Varnish, Cloudflare, Qrator, ModSecurity, NAXSI, Nemesida]
