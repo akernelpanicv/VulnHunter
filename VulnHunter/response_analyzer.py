@@ -1,13 +1,11 @@
-import requests
 import sys
-
 import logging.config
-from settings import logger_config
 
+import requests
 from requests.exceptions import ConnectionError
-from abc import ABCMeta, abstractmethod
 
-from firewalls import wafs
+from settings import logger_config
+from firewalls import WAFInspector
 
 
 logging.config.dictConfig(logger_config)
@@ -21,7 +19,8 @@ class ResponseParser:
         self._url = url
         self.response = self._get_response()
 
-        self._parse()
+        for cls in BaseHandler.__subclasses__():
+            cls(self.response)
 
     def _get_response(self):
         try:
@@ -30,19 +29,13 @@ class ResponseParser:
             logger.critical('The page is not available!')
             sys.exit(1)
 
-    def _parse(self):
-        handlers = (StatusCodeHandler, WAFHandler, CSPHandler)
 
-        [handler(self.response) for handler in handlers]
-
-
-class BaseHandler(metaclass=ABCMeta):
+class BaseHandler:
     def __init__(self, *args, **kwargs):
         self.handle(*args, **kwargs)
 
-    @abstractmethod
     def handle(self, *args, **kwargs):
-        pass
+        raise NotImplementedError
 
 
 class StatusCodeHandler(BaseHandler):
@@ -55,10 +48,10 @@ class StatusCodeHandler(BaseHandler):
 
 class WAFHandler(BaseHandler):
     def handle(self, response):
-        for waf in wafs:
-            waf(response)
+        for waf in WAFInspector.__subclasses__():
+            waf = waf(response)
 
-            if waf.is_detected():
+            if waf.detected:
                 logger.info(f'WAF "{waf.name}" detected')
 
 
